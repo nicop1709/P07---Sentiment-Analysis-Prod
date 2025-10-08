@@ -9,10 +9,9 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     env:
-      # Fake connection string pour que ton app démarre sans planter en tests
-      APPLICATIONINSIGHTS_CONNECTION_STRING: "InstrumentationKey=00000000-0000-0000-0000-000000000000"
+      APPLICATIONINSIGHTS_CONNECTION_STRING: "InstrumentationKey=c1917757-cf99-490f-83d4-567865896547;IngestionEndpoint=https://westeurope-5.in.applicationinsights.azure.com/;LiveEndpoint=https://westeurope.livediagnostics.monitor.azure.com/;ApplicationId=14815754-6985-45bf-a851-10f0ffb19ca1"
       MODEL_VERSION: "ci"
-      MODEL_DIR: "./models/savedmodel"  # n'existera pas en CI => fallback mock
+      MODEL_DIR: "./models/savedmodel"
     steps:
       - uses: actions/checkout@v4
 
