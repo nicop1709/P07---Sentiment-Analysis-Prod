@@ -172,6 +172,7 @@ def predict(payload: PredictIn):
     logger.info(
         "prediction",
         extra={"custom_dimensions":{
+            "text": payload.text,
             "score": score,
             "sentiment": sentiment,
             "model_version": MODEL_VERSION,
@@ -195,6 +196,7 @@ def feedback(payload: FeedbackIn):
         level,
         msg,
         extra={"custom_dimensions":{
+            "text": payload.text,
             "is_valid": payload.is_valid,
             "predicted": payload.predicted,
             "score": payload.score,
