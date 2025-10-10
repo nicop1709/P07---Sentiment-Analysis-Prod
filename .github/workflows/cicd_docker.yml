@@ -1,9 +1,10 @@
 name: CI/CD (Docker → GHCR → Azure)
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
+    push:
+      branches: [ "master" ]
+    pull_request:
+      branches: [ "master" ]
 
 permissions:
   contents: read
