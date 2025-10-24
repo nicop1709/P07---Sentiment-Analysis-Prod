@@ -10,6 +10,7 @@ from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from sklearn.feature_extraction.text import CountVectorizer,TfidfVectorizer
 import tensorflow_hub as hub
 from nltk.stem import SnowballStemmer
+import joblib
 _STEMMER_EN = SnowballStemmer("english")
 
 from dotenv import load_dotenv
@@ -42,10 +43,15 @@ STOPWORDS_SET = set(stopwords)
 
 
 # --- Chargement modèle TensorFlow (optionnel si non dispo) ---
-TF_AVAILABLE = True
-
-import numpy as np
-import tensorflow as tf
+try:
+    import numpy as np
+    import tensorflow as tf
+    TF_AVAILABLE = True
+except Exception as tf_err:
+    TF_AVAILABLE = False
+    tf = None  # type: ignore[assignment]
+    logger = logging.getLogger("p07_sentiment_api")
+    logger.warning("TensorFlow indisponible, bascule possible vers un modèle sklearn.", exc_info=tf_err)
 
 
 # -------- Config ----------
@@ -56,6 +62,7 @@ if not APPINSIGHTS_CONN:
 configure_azure_monitor(connection_string=APPINSIGHTS_CONN)
 
 MODEL_DIR = os.getenv("MODEL_DIR", "./models/savedmodel")
+MODEL_JOBLIB_PATH = os.getenv("MODEL_JOBLIB_PATH", os.path.join(MODEL_DIR, "baseline_pipeline.joblib"))
 MODEL_VERSION = os.getenv("MODEL_VERSION", "dev")
 
 # Logger standard (capté par OpenTelemetry)
@@ -71,12 +78,42 @@ app.add_middleware(
 
 # -------- Modèle ----------
 model = None
+model_backend: Literal["tensorflow", "sklearn", "mock"] = "mock"
+
 if TF_AVAILABLE and os.path.isdir(MODEL_DIR):
     try:
         model = tf.keras.models.load_model(MODEL_DIR)
-        logger.info(f"Model loaded from {MODEL_DIR}", extra={"custom_dimensions":{"model_version": MODEL_VERSION}})
+        model_backend = "tensorflow"
+        logger.info(
+            f"TensorFlow model loaded from {MODEL_DIR}",
+            extra={"custom_dimensions":{"model_version": MODEL_VERSION}}
+        )
     except Exception as e:
-        logger.exception("Failed to load TF model, fallback to mock.", extra={"custom_dimensions":{"err": str(e)}})
+        logger.exception(
+            "Failed to load TF model, attempting sklearn pipeline.",
+            extra={"custom_dimensions":{"err": str(e)}}
+        )
+
+if model is None and os.path.isfile(MODEL_JOBLIB_PATH):
+    try:
+        model = joblib.load(MODEL_JOBLIB_PATH)
+        model_backend = "sklearn"
+        logger.info(
+            f"Sklearn pipeline loaded from {MODEL_JOBLIB_PATH}",
+            extra={"custom_dimensions":{"model_version": MODEL_VERSION}}
+        )
+        print(f"Sklearn pipeline loaded from {MODEL_JOBLIB_PATH}")
+    except Exception as e:
+        logger.exception(
+            "Failed to load sklearn pipeline, fallback to mock.",
+            extra={"custom_dimensions":{"err": str(e)}}
+        )
+        print("Failed to load sklearn pipeline, fallback to mock.")
+if model is None:
+    logger.warning(
+        "Aucun modèle chargé, fallback mock activé.",
+        extra={"custom_dimensions":{"model_version": MODEL_VERSION}}
+    )
 
 def preprocess_text_function(text,mode="lemma"):
     """
@@ -128,12 +165,16 @@ def predict_proba_positive(text: str) -> float:
     """
     Renvoie une proba de 'positive'.
     - Si modèle TF dispo: utilise model.predict
+    - Si pipeline sklearn dispo: predict_proba
     - Sinon: mock rapide basé sur mots-clés (pour test pipeline).
     """
-    if model is not None and TF_AVAILABLE:
+    if model is not None and model_backend == "tensorflow":
         x = preprocess_text_function(text)
         p = float(model.predict(x, verbose=0).ravel()[0])
         return max(0.0, min(1.0, p))
+    if model is not None and model_backend == "sklearn":
+        proba = model.predict_proba([text])[0][1]
+        return max(0.0, min(1.0, float(proba)))
     # --- fallback mock ---
     txt = text.lower()
     good = sum(w in txt for w in ["good","great","love","amazing","excellent","super","cool","merci","génial"])

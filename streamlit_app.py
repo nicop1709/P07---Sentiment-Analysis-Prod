@@ -12,11 +12,12 @@ if "last_pred" not in st.session_state:
 
 with st.sidebar:
     st.header("⚙️ Paramètres")
-    api_base = st.text_input("API base URL", DEFAULT_API_BASE).rstrip("/")
-
+    #api_base = st.text_input("API base URL", DEFAULT_API_BASE).rstrip("/")
+    api_base =  st.selectbox("API base URL",[DEFAULT_API_BASE,"http://127.0.0.1:8000"]).rstrip("/")
 timeout_s = 20
 st.title("💬 Analyse de sentiment (P07)")
 txt = st.text_area("Texte à analyser", height=160, placeholder="Tape ou colle ton texte ici…")
+
 
 def _url(path: str) -> str:
     return f"{api_base}{path if path.startswith('/') else '/' + path}"
