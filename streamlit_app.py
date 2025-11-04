@@ -36,7 +36,7 @@ def predict_api(text: str, timeout: float = 8.0):
         time.sleep(0.3 * (attempt + 1))
     raise RuntimeError(f"Appel API /predict en échec: {last_err}")
 
-def send_feedback(text: str, predicted: str, score: float, is_valid: bool, model_version: str|None=None):
+def send_feedback(text: str, predicted: str, score: float, is_valid: bool, model_version=None):
     try:
         r = requests.post(_url("/feedback"), json={
             "text": text,
@@ -81,9 +81,14 @@ if go:
 # ---- rendu du dernier résultat + feedback (persiste après re-run) ----
 if st.session_state.last_pred:
     lp = st.session_state.last_pred
+    if lp["score"]>0.5:
+        confiance = lp["score"]
+    else:
+        confiance = 1-lp["score"]
     pos = (lp["sentiment"] == "positive")
-    st.success("😊 **Positif**" if pos else "☹️ **Négatif**")
-    st.metric("Score (proba positif)", f'{lp["score"]:.1%}')
+
+    st.info("😊 **Positif**" if pos else "☹️ **Négatif**")
+    st.metric("Score (confiance)", f'{confiance:.1%}')
     st.caption(f'Modèle: {lp["model_version"]} • Latence: {lp["latency_ms"]:.0f} ms')
 
     fb_col = st.columns(2)
