@@ -166,7 +166,6 @@ def predict_proba_positive(text: str) -> float:
     Renvoie une proba de 'positive'.
     - Si modèle TF dispo: utilise model.predict
     - Si pipeline sklearn dispo: predict_proba
-    - Sinon: mock rapide basé sur mots-clés (pour test pipeline).
     """
     if model is not None and model_backend == "tensorflow":
         x = preprocess_text_function(text)
@@ -175,12 +174,7 @@ def predict_proba_positive(text: str) -> float:
     if model is not None and model_backend == "sklearn":
         proba = model.predict_proba([text])[0][1]
         return max(0.0, min(1.0, float(proba)))
-    # --- fallback mock ---
-    txt = text.lower()
-    good = sum(w in txt for w in ["good","great","love","amazing","excellent","super","cool","merci","génial"])
-    bad  = sum(w in txt for w in ["bad","hate","awful","terrible","horrible","nul","pourri","triste"])
-    score = 0.5 + 0.1*(good - bad)
-    return max(0.0, min(1.0, score))
+
 
 # -------- Schemas ----------
 class PredictIn(BaseModel):
